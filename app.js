@@ -16,10 +16,10 @@ document.addEventListener("DOMContentLoaded", () => {
         heatmapPreset: "neon-orange",
         
         // Heatmap config defaults
-        radius: 15,
-        blur: 15,
+        radius: 10,
+        blur: 8,
         opacity: 0.8,
-        maxIntensity: 3.0,
+        maxIntensity: 8.5,
         showHeatmap: true,
         showTracks: false
     };
