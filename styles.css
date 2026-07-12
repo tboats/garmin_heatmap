@@ -667,6 +667,12 @@ input[type="range"]::-webkit-slider-thumb:hover {
     100% { transform: translateX(-100%); }
 }
 
+/* Heatmap Layer Default Styles */
+.leaflet-heatmap-layer {
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .hud-header {

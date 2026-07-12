@@ -285,6 +285,14 @@ document.addEventListener("DOMContentLoaded", () => {
         // Add to map if toggled on
         if (state.showHeatmap) {
             state.heatmapLayer.addTo(state.map);
+            
+            // Set initial canvas container opacity after render
+            setTimeout(() => {
+                const container = document.querySelector(".leaflet-heatmap-layer");
+                if (container) {
+                    container.style.opacity = state.opacity;
+                }
+            }, 50);
         }
     }
 
