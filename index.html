@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garmin RunFlow Heatmap</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- Main Dashboard App -->
+    <div id="app">
+        <!-- Floating HUD Header -->
+        <header class="hud-header glass-card">
+            <div class="logo">
+                <i class="fa-solid fa-fire-flame-curved logo-icon"></i>
+                <div class="logo-text">
+                    <h1>RunFlow</h1>
+                    <span>Garmin Heatmap Dashboard</span>
+                </div>
+            </div>
+            <div class="header-stats">
+                <div class="quick-stat">
+                    <span class="label"><i class="fa-solid fa-running"></i> Total Runs</span>
+                    <span class="value" id="header-total-runs">0</span>
+                </div>
+                <div class="quick-stat separator"></div>
+                <div class="quick-stat">
+                    <span class="label"><i class="fa-solid fa-route"></i> Total Distance</span>
+                    <span class="value" id="header-total-distance">0.0 km</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Floating Sidebar Controls -->
+        <aside class="hud-sidebar glass-card">
+            <!-- Sidebar Navigation/Tabs -->
+            <div class="sidebar-tabs">
+                <button class="tab-btn active" data-tab="dashboard">
+                    <i class="fa-solid fa-chart-line"></i> Analytics
+                </button>
+                <button class="tab-btn" data-tab="runs">
+                    <i class="fa-solid fa-list-ul"></i> Run History
+                </button>
+                <button class="tab-btn" data-tab="settings">
+                    <i class="fa-solid fa-sliders"></i> Map Settings
+                </button>
+            </div>
+
+            <!-- Tab Content: Dashboard/Analytics -->
+            <div class="tab-content active" id="tab-dashboard">
+                <section class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">Total Duration</span>
+                        <span class="stat-value" id="stat-total-duration">0h 0m</span>
+                        <i class="fa-solid fa-clock stat-bg-icon"></i>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Avg Pace</span>
+                        <span class="stat-value" id="stat-avg-pace">0:00 /km</span>
+                        <i class="fa-solid fa-gauge-high stat-bg-icon"></i>
+                    </div>
+                </section>
+
+                <section class="section-container">
+                    <h3>Visual Overlays</h3>
+                    <div class="overlay-toggles">
+                        <label class="toggle-control">
+                            <span class="toggle-label"><i class="fa-solid fa-layer-group"></i> Heatmap Layer</span>
+                            <input type="checkbox" id="toggle-heatmap" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <label class="toggle-control">
+                            <span class="toggle-label"><i class="fa-solid fa-road"></i> GPS Track Lines</span>
+                            <input type="checkbox" id="toggle-tracks">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </section>
+                
+                <section class="section-container heat-controls">
+                    <h3>Heatmap Density</h3>
+                    <div class="slider-control">
+                        <div class="slider-header">
+                            <span>Radius Size</span>
+                            <span id="val-radius">15px</span>
+                        </div>
+                        <input type="range" id="input-radius" min="5" max="40" value="15">
+                    </div>
+                    <div class="slider-control">
+                        <div class="slider-header">
+                            <span>Blur Level</span>
+                            <span id="val-blur">15px</span>
+                        </div>
+                        <input type="range" id="input-blur" min="5" max="30" value="15">
+                    </div>
+                    <div class="slider-control">
+                        <div class="slider-header">
+                            <span>Opacity</span>
+                            <span id="val-opacity">0.8</span>
+                        </div>
+                        <input type="range" id="input-opacity" min="1" max="10" value="8">
+                    </div>
+                    <div class="slider-control">
+                        <div class="slider-header">
+                            <span>Contrast (Max Intensity)</span>
+                            <span id="val-max-intensity">3.0</span>
+                        </div>
+                        <input type="range" id="input-max-intensity" min="10" max="100" value="30">
+                    </div>
+                </section>
+            </div>
+
+            <!-- Tab Content: Run List -->
+            <div class="tab-content" id="tab-runs">
+                <div class="run-list-header">
+                    <h3>Garmin Activities</h3>
+                    <span class="badge" id="runs-badge">0 Runs</span>
+                </div>
+                <div class="run-list-container" id="run-list">
+                    <!-- Runs dynamically injected here -->
+                    <div class="loading-runs">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i> Loading Garmin activities...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Map Settings -->
+            <div class="tab-content" id="tab-settings">
+                <section class="section-container">
+                    <h3>Map Styling</h3>
+                    <div class="map-theme-options">
+                        <button class="theme-btn active" data-theme="dark">
+                            <span class="preview dark"></span> Dark Matte (Best)
+                        </button>
+                        <button class="theme-btn" data-theme="light">
+                            <span class="preview light"></span> Light Minimal
+                        </button>
+                        <button class="theme-btn" data-theme="satellite">
+                            <span class="preview satellite"></span> Satellite Imagery
+                        </button>
+                    </div>
+                </section>
+
+                <section class="section-container">
+                    <h3>Heatmap Color Palette</h3>
+                    <div class="color-presets">
+                        <button class="color-btn active" data-color="neon-orange">
+                            <span class="color-preview orange"></span> Electric Orange
+                        </button>
+                        <button class="color-btn" data-color="neon-green">
+                            <span class="color-preview green"></span> Acid Green
+                        </button>
+                        <button class="color-btn" data-color="neon-blue">
+                            <span class="color-preview blue"></span> Cyan Ice
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </aside>
+
+        <!-- Fullscreen Interactive Map -->
+        <main id="map-container">
+            <div id="map"></div>
+        </main>
+        
+        <!-- Loading Overlay -->
+        <div id="loading-overlay">
+            <div class="spinner-container">
+                <i class="fa-solid fa-fire-flame-curved spinner-icon"></i>
+                <h2>Loading Running Data</h2>
+                <p>Decoding coordinates and generating maps...</p>
+                <div class="progress-bar-container">
+                    <div class="progress-bar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Leaflet Heatmap Plugin -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <!-- Custom Application JS -->
+    <script src="app.js"></script>
+</body>
+</html>
