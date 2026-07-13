@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
         radius: 10,
         blur: 8,
         opacity: 0.8,
-        maxIntensity: 8.5,
+        maxIntensity: 35.0,
         showHeatmap: true,
         showTracks: false
     };
@@ -85,11 +85,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 1. Initialize Map
     function initMap() {
-        // Create map centered on a default fallback position (USA center)
+        // Create map centered on Seattle
         state.map = L.map("map", {
             zoomControl: true,
             attributionControl: true
-        }).setView([39.8283, -98.5795], 4);
+        }).setView([47.6062, -122.3321], 11);
 
         // Add Zoom control at top right
         state.map.zoomControl.setPosition('topright');
@@ -129,8 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
             renderHeatmap();
             renderTracks();
             
-            // Auto-center map on runs
-            fitMapToBounds();
+            // Keep default Seattle view on load (no auto-center override)
             
             // Hide loading screen
             setTimeout(() => {
