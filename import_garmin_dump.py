@@ -94,8 +94,8 @@ def parse_fit_bytes(args_tuple):
         
     return {
         "filename": filename,
-        "start_time": start_time.isoformat() if start_time else None,
-        "end_time": end_time.isoformat() if end_time else None,
+        "start_time": (start_time.isoformat() + "Z") if start_time else None,
+        "end_time": (end_time.isoformat() + "Z") if end_time else None,
         "distance_meters": round(session_distance, 1),
         "duration_seconds": round(session_duration, 1),
         "points_count": len(points),

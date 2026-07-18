@@ -115,9 +115,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             state.runs = await response.json();
             
-            // Format dates
+            // Format dates (UTC to browser local time)
             state.runs.forEach(run => {
-                run.dateObj = run.start_time ? new Date(run.start_time) : new Date();
+                let timeStr = run.start_time;
+                if (timeStr && !timeStr.endsWith('Z') && !timeStr.includes('+') && !timeStr.includes('-')) {
+                    timeStr += 'Z';
+                }
+                run.dateObj = timeStr ? new Date(timeStr) : new Date();
             });
             
             // Sort runs chronologically descending
@@ -164,8 +168,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!meters || !seconds) return "0:00 /km";
         const km = meters / 1000.0;
         const totalSecondsPerKm = seconds / km;
-        const mins = Math.floor(totalSecondsPerKm / 60);
-        const secs = Math.round(totalSecondsPerKm % 60);
+        let mins = Math.floor(totalSecondsPerKm / 60);
+        let secs = Math.round(totalSecondsPerKm % 60);
+        if (secs === 60) {
+            mins += 1;
+            secs = 0;
+        }
         return `${mins}:${secs.toString().padStart(2, '0')} /km`;
     }
 
