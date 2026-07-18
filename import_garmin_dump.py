@@ -205,7 +205,7 @@ def main():
         os.makedirs(out_dir, exist_ok=True)
         
     with open(args.out, 'w') as f:
-        json.dump(runs, f, indent=2)
+        json.dump(runs, f)
         
     print(f"\n🎉 Successfully parsed and combined {len(runs)} unique runs into {args.out}")
 
