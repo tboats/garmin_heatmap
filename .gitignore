@@ -6,3 +6,8 @@ __pycache__/
 # OS-specific
 .DS_Store
 Thumbs.db
+
+# Garmin tokens & env secrets
+.garminconnect_tokens/
+.env*
+
