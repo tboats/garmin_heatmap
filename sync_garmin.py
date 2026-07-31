@@ -235,7 +235,15 @@ def main():
         print(f"\n🎉 Successfully added {new_runs_count} new run(s)! Database updated ({len(runs)} total runs).")
         
         # 6. Offer to push to GitHub
-        push_ans = input("\nWould you like to commit and push changes to GitHub? [Y/n]: ").strip().lower()
+        auto_push = "--auto-push" in sys.argv or "-y" in sys.argv
+        if auto_push:
+            push_ans = 'y'
+        else:
+            try:
+                push_ans = input("\nWould you like to commit and push changes to GitHub? [Y/n]: ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                push_ans = 'y'
+
         if push_ans in ('', 'y', 'yes'):
             try:
                 print("git commit & push...")
