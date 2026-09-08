@@ -70,18 +70,47 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // Theme URLs (Map Tile layers)
-    const mapTiles = {
-        dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        light: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-        satellite: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-    };
+    // Map Tile Layers setup (watermark-free default providers, with optional CARTO API key support)
+    const cartoApiKey = (new URLSearchParams(window.location.search)).get("carto_key") || localStorage.getItem("carto_api_key") || "";
+    if ((new URLSearchParams(window.location.search)).get("carto_key")) {
+        localStorage.setItem("carto_api_key", (new URLSearchParams(window.location.search)).get("carto_key"));
+    }
 
-    const tileAttributions = {
-        dark: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        light: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        satellite: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-    };
+    function createTileLayer(theme) {
+        if (theme === "dark") {
+            if (cartoApiKey) {
+                return L.tileLayer(`https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`, {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    maxZoom: 20
+                });
+            }
+            return L.layerGroup([
+                L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+                    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+                    maxZoom: 18
+                }),
+                L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", {
+                    maxZoom: 18
+                })
+            ]);
+        } else if (theme === "light") {
+            if (cartoApiKey) {
+                return L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`, {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    maxZoom: 20
+                });
+            }
+            return L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            });
+        } else if (theme === "satellite") {
+            return L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+                maxZoom: 19
+            });
+        }
+    }
 
     // 1. Initialize Map
     function initMap() {
@@ -95,11 +124,8 @@ document.addEventListener("DOMContentLoaded", () => {
         state.map.zoomControl.setPosition('topright');
 
         // Create tile layers
-        Object.keys(mapTiles).forEach(theme => {
-            state.tiles[theme] = L.tileLayer(mapTiles[theme], {
-                attribution: tileAttributions[theme],
-                maxZoom: 20
-            });
+        ["dark", "light", "satellite"].forEach(theme => {
+            state.tiles[theme] = createTileLayer(theme);
         });
 
         // Set default dark theme
