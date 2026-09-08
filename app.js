@@ -21,7 +21,13 @@ document.addEventListener("DOMContentLoaded", () => {
         opacity: 0.8,
         maxIntensity: 35.0,
         showHeatmap: true,
-        showTracks: false
+        showTracks: false,
+
+        // Segments config defaults
+        segments: [],
+        showSegments: true,
+        segmentLayer: null,
+        activeSegmentPolyline: null
     };
 
     // DOM Elements
@@ -45,6 +51,9 @@ document.addEventListener("DOMContentLoaded", () => {
         
         runList: document.getElementById("run-list"),
         runsBadge: document.getElementById("runs-badge"),
+        segmentList: document.getElementById("segment-list"),
+        segmentsBadge: document.getElementById("segments-badge"),
+        toggleSegments: document.getElementById("toggle-segments"),
         loadingOverlay: document.getElementById("loading-overlay")
     };
 
@@ -153,11 +162,40 @@ document.addEventListener("DOMContentLoaded", () => {
             // Sort runs chronologically descending
             state.runs.sort((a, b) => b.dateObj - a.dateObj);
             
-            // Render Stats & Heatmap
+            // Load Segments
+            try {
+                const segResponse = await fetch("data/segments.json");
+                if (segResponse.ok) {
+                    state.segments = await segResponse.json();
+                }
+            } catch (e) {
+                console.warn("Could not load segments.json:", e);
+                state.segments = [];
+            }
+
+            // Merge any custom segments saved by the user in localStorage
+            try {
+                const customSegs = JSON.parse(localStorage.getItem("user_custom_segments") || "[]");
+                if (Array.isArray(customSegs) && customSegs.length > 0) {
+                    const existingIds = new Set(state.segments.map(s => s.id));
+                    customSegs.forEach(cs => {
+                        if (!existingIds.has(cs.id)) {
+                            state.segments.push(cs);
+                            existingIds.add(cs.id);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.warn("Error reading custom segments from localStorage:", e);
+            }
+
+            // Render Stats, Heatmap, Tracks & Segments
             updateDashboardStats();
             renderRunList();
             renderHeatmap();
             renderTracks();
+            renderSegments();
+            renderSegmentTracks();
             
             // Keep default Seattle view on load (no auto-center override)
             
@@ -250,7 +288,12 @@ document.addEventListener("DOMContentLoaded", () => {
             card.innerHTML = `
                 <div class="run-item-top">
                     <span class="run-date">${dateStr}</span>
-                    <span class="run-time">${timeStr}</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span class="run-time">${timeStr}</span>
+                        <button class="btn-star-run" title="Bookmark as a Segment" data-index="${index}">
+                            <i class="fa-regular fa-star"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="run-stats-row">
                     <div class="run-sub-stat">
@@ -267,6 +310,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 </div>
             `;
+
+            // Star button to save run as a custom segment
+            const starBtn = card.querySelector(".btn-star-run");
+            if (starBtn) {
+                starBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    saveRunAsSegment(run);
+                });
+            }
 
             // Hover effects (highlight track line on map)
             card.addEventListener("mouseenter", () => {
@@ -287,6 +339,229 @@ document.addEventListener("DOMContentLoaded", () => {
 
             elements.runList.appendChild(card);
         });
+    }
+
+    // 5b. Render Segments List
+    function renderSegments() {
+        if (!elements.segmentList) return;
+        elements.segmentList.innerHTML = "";
+        if (elements.segmentsBadge) {
+            elements.segmentsBadge.innerText = `${state.segments.length} Segments`;
+        }
+
+        if (state.segments.length === 0) {
+            elements.segmentList.innerHTML = `
+                <div class="loading-runs" style="color: var(--text-muted); font-size: 12px; text-align: center; padding: 20px 0;">
+                    <i class="fa-solid fa-trophy" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i><br>
+                    No segments saved yet.<br>Click the star <i class="fa-regular fa-star"></i> on any run in the Runs tab to save it as a segment!
+                </div>`;
+            return;
+        }
+
+        state.segments.forEach((seg, index) => {
+            const distKm = (seg.distance_meters / 1000.0).toFixed(2) + " km";
+            const mins = Math.floor(seg.duration_seconds / 60);
+            const secs = Math.round(seg.duration_seconds % 60);
+            const prStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+            const paceStr = formatPace(seg.distance_meters, seg.duration_seconds);
+
+            const card = document.createElement("div");
+            card.className = "segment-item";
+            card.dataset.index = index;
+            card.innerHTML = `
+                <div class="segment-item-top">
+                    <span class="segment-name"><i class="fa-solid fa-flag-checkered"></i> ${seg.name}</span>
+                    <span class="segment-badge-attempts">${seg.attempts || 1} run${(seg.attempts || 1) > 1 ? 's' : ''}</span>
+                </div>
+                <div class="segment-desc">${seg.description || 'Custom segment from Garmin history'}</div>
+                <div class="segment-stats-row">
+                    <div class="segment-sub-stat">
+                        <span class="val">${distKm}</span>
+                        <span class="lbl">Dist</span>
+                    </div>
+                    <div class="segment-sub-stat">
+                        <span class="val pr"><i class="fa-solid fa-crown" style="font-size:10px;"></i> ${prStr}</span>
+                        <span class="lbl">Best Time</span>
+                    </div>
+                    <div class="segment-sub-stat">
+                        <span class="val">${paceStr}</span>
+                        <span class="lbl">PR Pace</span>
+                    </div>
+                </div>
+            `;
+
+            // Hover effects
+            card.addEventListener("mouseenter", () => {
+                highlightSegment(index);
+            });
+            card.addEventListener("mouseleave", () => {
+                removeHighlightSegment();
+            });
+
+            // Click effect (zoom to segment)
+            card.addEventListener("click", () => {
+                document.querySelectorAll(".segment-item").forEach(item => item.classList.remove("active"));
+                card.classList.add("active");
+                zoomToSegment(seg);
+            });
+
+            elements.segmentList.appendChild(card);
+        });
+    }
+
+    // Render Segment Tracks on Map
+    function renderSegmentTracks() {
+        if (!state.map) return;
+        if (state.segmentLayer) {
+            state.map.removeLayer(state.segmentLayer);
+        }
+
+        state.segmentLayer = L.layerGroup();
+
+        state.segments.forEach((seg, index) => {
+            if (!seg.points || seg.points.length === 0) return;
+            const latlngs = seg.points.map(p => [p.lat, p.lng]);
+
+            // Glow line underneath
+            const glowLine = L.polyline(latlngs, {
+                color: "#00f0ff",
+                weight: 7,
+                opacity: 0.35,
+                lineCap: "round",
+                lineJoin: "round"
+            });
+
+            // Crisp line on top
+            const coreLine = L.polyline(latlngs, {
+                color: "#ffffff",
+                weight: 3.5,
+                dashArray: "8, 6",
+                opacity: 0.95,
+                lineCap: "round",
+                lineJoin: "round"
+            });
+
+            // Start & Finish Markers
+            const startPt = latlngs[0];
+            const finishPt = latlngs[latlngs.length - 1];
+
+            const startIcon = L.divIcon({
+                className: "custom-div-icon",
+                html: `<div class="segment-marker start" title="Start">S</div>`,
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            });
+            const finishIcon = L.divIcon({
+                className: "custom-div-icon",
+                html: `<div class="segment-marker finish" title="Finish">F</div>`,
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            });
+
+            const startMarker = L.marker(startPt, { icon: startIcon });
+            const finishMarker = L.marker(finishPt, { icon: finishIcon });
+
+            const distKm = (seg.distance_meters / 1000.0).toFixed(2) + " km";
+            coreLine.bindTooltip(`<b>${seg.name}</b><br>${distKm} &bull; ${seg.attempts || 1} attempts`, {
+                sticky: true,
+                className: "hud-tooltip"
+            });
+
+            coreLine.on("click", () => {
+                zoomToSegment(seg);
+                // Switch to segments tab and highlight card
+                const segBtn = document.querySelector('.tab-btn[data-tab="segments"]');
+                if (segBtn) segBtn.click();
+                const card = document.querySelector(`.segment-item[data-index="${index}"]`);
+                if (card) {
+                    document.querySelectorAll(".segment-item").forEach(item => item.classList.remove("active"));
+                    card.classList.add("active");
+                    card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                }
+            });
+
+            state.segmentLayer.addLayer(glowLine);
+            state.segmentLayer.addLayer(coreLine);
+            state.segmentLayer.addLayer(startMarker);
+            state.segmentLayer.addLayer(finishMarker);
+        });
+
+        if (state.showSegments) {
+            state.segmentLayer.addTo(state.map);
+        }
+    }
+
+    function zoomToSegment(seg) {
+        if (!seg || !seg.points || seg.points.length === 0) return;
+        const latlngs = seg.points.map(pt => [pt.lat, pt.lng]);
+        const bounds = L.latLngBounds(latlngs);
+        state.map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
+        highlightSegmentPolyline(latlngs);
+    }
+
+    function highlightSegment(index) {
+        removeHighlightSegment();
+        const seg = state.segments[index];
+        if (!seg || !seg.points || seg.points.length === 0) return;
+        const latlngs = seg.points.map(pt => [pt.lat, pt.lng]);
+        highlightSegmentPolyline(latlngs);
+    }
+
+    function highlightSegmentPolyline(latlngs) {
+        removeHighlightSegment();
+        state.activeSegmentPolyline = L.polyline(latlngs, {
+            color: "#00f0ff",
+            weight: 7,
+            opacity: 1.0,
+            lineCap: "round",
+            lineJoin: "round"
+        }).addTo(state.map);
+    }
+
+    function removeHighlightSegment() {
+        if (state.activeSegmentPolyline) {
+            state.map.removeLayer(state.activeSegmentPolyline);
+            state.activeSegmentPolyline = null;
+        }
+    }
+
+    function saveRunAsSegment(run) {
+        const defaultName = `Route (${formatDistance(run.distance_meters)})`;
+        const segName = prompt("Enter a name for this Segment:", defaultName);
+        if (!segName || !segName.trim()) return;
+
+        const dateStr = formatDate(run.dateObj);
+        const newSeg = {
+            id: "custom-" + Date.now(),
+            name: segName.trim(),
+            description: `Saved from run on ${dateStr}`,
+            distance_meters: run.distance_meters,
+            duration_seconds: run.duration_seconds,
+            attempts: 1,
+            best_date: run.start_time,
+            points: run.points
+        };
+
+        state.segments.unshift(newSeg);
+
+        // Persist to localStorage
+        try {
+            const customSegs = JSON.parse(localStorage.getItem("user_custom_segments") || "[]");
+            customSegs.unshift(newSeg);
+            localStorage.setItem("user_custom_segments", JSON.stringify(customSegs));
+        } catch (e) {
+            console.warn("Failed to persist custom segment:", e);
+        }
+
+        renderSegments();
+        renderSegmentTracks();
+
+        // Switch to Segments tab and highlight
+        const segTabBtn = document.querySelector('.tab-btn[data-tab="segments"]');
+        if (segTabBtn) segTabBtn.click();
+
+        zoomToSegment(newSeg);
+        alert(`🎉 '${newSeg.name}' saved as a segment!`);
     }
 
     // 6. Heatmap Layer rendering
@@ -449,6 +724,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         });
+
+        // Toggle Segments Checkbox
+        if (elements.toggleSegments) {
+            elements.toggleSegments.addEventListener("change", (e) => {
+                state.showSegments = e.target.checked;
+                if (state.showSegments) {
+                    if (state.segmentLayer) state.segmentLayer.addTo(state.map);
+                } else {
+                    if (state.segmentLayer) state.map.removeLayer(state.segmentLayer);
+                }
+            });
+        }
 
         // Heatmap Radius Slider
         elements.inputRadius.addEventListener("input", (e) => {

@@ -53,10 +53,13 @@
                     <i class="fa-solid fa-chart-line"></i> Analytics
                 </button>
                 <button class="tab-btn" data-tab="runs">
-                    <i class="fa-solid fa-list-ul"></i> Run History
+                    <i class="fa-solid fa-list-ul"></i> Runs
+                </button>
+                <button class="tab-btn" data-tab="segments">
+                    <i class="fa-solid fa-trophy"></i> Segments
                 </button>
                 <button class="tab-btn" data-tab="settings">
-                    <i class="fa-solid fa-sliders"></i> Map Settings
+                    <i class="fa-solid fa-sliders"></i> Settings
                 </button>
             </div>
 
@@ -135,6 +138,29 @@
                     <div class="loading-runs">
                         <i class="fa-solid fa-circle-notch fa-spin"></i> Loading Garmin activities...
                     </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Segments -->
+            <div class="tab-content" id="tab-segments">
+                <div class="segment-list-header">
+                    <div>
+                        <h3>Route Segments</h3>
+                        <span class="segment-subtitle">Signature routes from your runs</span>
+                    </div>
+                    <span class="badge" id="segments-badge">0 Segments</span>
+                </div>
+
+                <div class="segment-toolbar">
+                    <label class="switch-control">
+                        <input type="checkbox" id="toggle-segments" checked>
+                        <span class="slider round"></span>
+                        <span class="switch-label">Show Segments on Map</span>
+                    </label>
+                </div>
+
+                <div class="segment-list-container" id="segment-list">
+                    <!-- Dynamic segments injected here -->
                 </div>
             </div>
 

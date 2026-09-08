@@ -217,15 +217,15 @@ body, html {
     outline: none;
     color: var(--text-secondary);
     font-family: var(--font-body);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
-    padding: 8px 0;
+    padding: 8px 2px;
     border-radius: 8px;
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     transition: var(--transition-smooth);
 }
 
@@ -694,3 +694,172 @@ input[type="range"]::-webkit-slider-thumb:hover {
         max-height: 40%;
     }
 }
+
+/* ==========================================================================
+   Segments Tab & Card Styles
+   ========================================================================== */
+.segment-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.segment-list-header h3 {
+    font-family: var(--font-heading);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.segment-subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 2px;
+}
+
+.segment-toolbar {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.segment-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.segment-item {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: var(--transition-smooth);
+    position: relative;
+}
+
+.segment-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(0, 240, 255, 0.35);
+    transform: translateY(-1px);
+}
+
+.segment-item.active {
+    border-color: #00f0ff;
+    background: rgba(0, 240, 255, 0.06);
+    box-shadow: 0 0 16px rgba(0, 240, 255, 0.18);
+}
+
+.segment-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.segment-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.segment-name i {
+    color: #00f0ff;
+    font-size: 12px;
+}
+
+.segment-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+.segment-stats-row {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.segment-sub-stat {
+    display: flex;
+    flex-direction: column;
+}
+
+.segment-sub-stat .val {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.segment-sub-stat .val.pr {
+    color: #ffd700; /* Gold */
+}
+
+.segment-sub-stat .lbl {
+    font-size: 9px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.segment-badge-attempts {
+    margin-left: auto;
+    background: rgba(0, 240, 255, 0.1);
+    color: #00f0ff;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 240, 255, 0.25);
+    white-space: nowrap;
+}
+
+/* Star/Bookmark button on runs in history */
+.btn-star-run {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: var(--transition-smooth);
+}
+
+.btn-star-run:hover {
+    color: #ffd700;
+    transform: scale(1.2);
+}
+
+/* Segment Map Markers */
+.segment-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    box-shadow: 0 0 10px rgba(0,0,0,0.6);
+    border: 2px solid #fff;
+}
+
+.segment-marker.start {
+    background: #00e676;
+}
+
+.segment-marker.finish {
+    background: #ff1744;
+}
+
