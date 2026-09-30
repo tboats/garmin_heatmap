@@ -10,8 +10,10 @@ coordinate points, updates data/runs.json, and optionally commits/pushes to GitH
 import os
 import sys
 import json
+import base64
 import getpass
 import zipfile
+import traceback
 import subprocess
 from io import BytesIO
 from datetime import datetime
@@ -190,18 +192,29 @@ def authenticate():
 
     # 0. Try GARMIN_TOKENS environment variable (used in GitHub Actions)
     tokens_env = os.getenv("GARMIN_TOKENS")
-    if tokens_env:
+    if tokens_env and tokens_env.strip():
         try:
-            print("🔒 Authenticating via GARMIN_TOKENS environment variable...")
+            print(f"🔒 Authenticating via GARMIN_TOKENS secret (length: {len(tokens_env.strip())})...")
+            raw = base64.b64decode(tokens_env.strip()).decode('utf-8')
+            tokens = json.loads(raw)
+            os.makedirs(TOKENSTORE, exist_ok=True)
+            with open(os.path.join(TOKENSTORE, "oauth1_token.json"), "w") as f:
+                json.dump(tokens[0], f)
+            with open(os.path.join(TOKENSTORE, "oauth2_token.json"), "w") as f:
+                json.dump(tokens[1], f)
+            
             garmin = Garmin()
-            garmin.garth.loads(tokens_env.strip())
-            print("✅ Successfully authenticated via GARMIN_TOKENS session token!")
+            garmin.login(TOKENSTORE)
+            print(f"✅ Successfully authenticated as: {garmin.full_name} ({garmin.display_name})")
             return garmin
         except Exception as e:
             print(f"⚠️ Failed to authenticate via GARMIN_TOKENS: {e}")
+            traceback.print_exc()
+    else:
+        print("ℹ️ Note: GARMIN_TOKENS environment variable is empty or not provided.")
 
     # 1. Try OAuth token authentication from disk
-    if os.path.exists(TOKENSTORE):
+    if os.path.exists(TOKENSTORE) and os.path.exists(os.path.join(TOKENSTORE, "oauth1_token.json")):
         try:
             print(f"🔒 Authenticating via saved OAuth tokens ({TOKENSTORE})...")
             garmin = Garmin()
@@ -211,10 +224,33 @@ def authenticate():
         except Exception as e:
             print(f"⚠️ OAuth token expired or invalid: {e}")
 
-    # 2. Prompt for login and save OAuth tokens
+    # 2. Check environment credentials
+    email = os.getenv("GARMIN_EMAIL")
+    password = os.getenv("GARMIN_PASSWORD")
+    if email and password:
+        try:
+            print(f"🔑 Authenticating via GARMIN_EMAIL ({email})...")
+            garmin = Garmin(email, password)
+            garmin.login()
+            os.makedirs(TOKENSTORE, exist_ok=True)
+            garmin.garth.dump(TOKENSTORE)
+            print(f"✅ Login successful! Saved OAuth tokens to {TOKENSTORE}")
+            return garmin
+        except Exception as e:
+            print(f"❌ Failed to log in with GARMIN_EMAIL: {e}")
+            sys.exit(1)
+
+    # 3. Guard against non-interactive stdin hang in CI / GitHub Actions
+    if not sys.stdin.isatty():
+        print("❌ Error: Authentication failed in non-interactive environment (CI / GitHub Actions).")
+        print("   Make sure you added the GARMIN_TOKENS secret under:")
+        print("   GitHub Repo > Settings > Secrets and variables > Actions > Repository secrets")
+        sys.exit(1)
+
+    # 4. Interactive prompt
     print("\n🔑 Garmin Connect Login Required (OAuth tokens will be saved for future automatic syncs)")
-    email = os.getenv("GARMIN_EMAIL") or input("Garmin Email: ").strip()
-    password = os.getenv("GARMIN_PASSWORD") or getpass.getpass("Garmin Password: ")
+    email = input("Garmin Email: ").strip()
+    password = getpass.getpass("Garmin Password: ")
     
     try:
         garmin = Garmin(email, password)
