@@ -3759,7 +3759,7 @@
     "description": "10km training loop",
     "distance_meters": 10078.3,
     "duration_seconds": 2987.7,
-    "attempts": 6,
+    "attempts": 11,
     "best_date": "2025-11-05T00:38:04Z",
     "points": [
       {
