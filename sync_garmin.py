@@ -185,10 +185,22 @@ def parse_fit_bytes(file_bytes, filename, downsample_rate=4):
     }
 
 def authenticate():
-    """Authenticates using cached OAuth tokens or performs initial login."""
+    """Authenticates using env secret, cached OAuth tokens, or performs initial login."""
     garmin = None
-    
-    # 1. Try OAuth token authentication
+
+    # 0. Try GARMIN_TOKENS environment variable (used in GitHub Actions)
+    tokens_env = os.getenv("GARMIN_TOKENS")
+    if tokens_env:
+        try:
+            print("🔒 Authenticating via GARMIN_TOKENS environment variable...")
+            garmin = Garmin()
+            garmin.garth.loads(tokens_env.strip())
+            print("✅ Successfully authenticated via GARMIN_TOKENS session token!")
+            return garmin
+        except Exception as e:
+            print(f"⚠️ Failed to authenticate via GARMIN_TOKENS: {e}")
+
+    # 1. Try OAuth token authentication from disk
     if os.path.exists(TOKENSTORE):
         try:
             print(f"🔒 Authenticating via saved OAuth tokens ({TOKENSTORE})...")
@@ -316,10 +328,11 @@ def main():
                     commit_msg = "Refresh segments analysis and running database"
                 subprocess.run(["git", "commit", "-m", commit_msg], check=True)
                 
-                # Push using custom SSH key if available
-                ssh_cmd = 'ssh -i ~/.ssh/github_key -o IdentitiesOnly=yes'
+                # Push using custom SSH key if available locally
+                ssh_key_path = os.path.expanduser("~/.ssh/github_key")
                 env = os.environ.copy()
-                env['GIT_SSH_COMMAND'] = ssh_cmd
+                if os.path.exists(ssh_key_path):
+                    env['GIT_SSH_COMMAND'] = f'ssh -i {ssh_key_path} -o IdentitiesOnly=yes'
                 subprocess.run(["git", "push", "origin", "main"], check=True, env=env)
                 print("🚀 Successfully pushed updates to GitHub repository!")
             except Exception as e:
