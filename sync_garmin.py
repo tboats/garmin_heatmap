@@ -33,7 +33,59 @@ except ImportError:
 
 TOKENSTORE = os.path.expanduser("~/.garminconnect_tokens")
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "runs.json")
+SEGMENTS_PATH = os.path.join(os.path.dirname(__file__), "data", "segments.json")
 DOWNSAMPLE_RATE = 4
+
+def refresh_segments(runs):
+    """Recalculates signature route segments from runs and updates segments.json."""
+    def find_best_run(min_d, max_d, title, desc, city_filter=None):
+        candidates = []
+        for r in runs:
+            d = r.get('distance_meters', 0) / 1000.0
+            if min_d <= d <= max_d and r.get('points'):
+                if city_filter:
+                    lat = r['points'][0]['lat']
+                    lng = r['points'][0]['lng']
+                    if city_filter == 'columbus' and not (39.5 <= lat <= 40.5 and -83.5 <= lng <= -82.5):
+                        continue
+                    if city_filter == 'seattle' and not (47.45 <= lat <= 47.8 and -122.5 <= lng <= -122.2):
+                        continue
+                    if city_filter == 'ny' and not (40.6 <= lat <= 41.0 and -74.1 <= lng <= -73.8):
+                        continue
+                    if city_filter == 'burlingame' and not (37.5 <= lat <= 37.7 and -122.5 <= lng <= -122.2):
+                        continue
+                candidates.append(r)
+                
+        if not candidates:
+            return None
+        best = min(candidates, key=lambda r: r.get('duration_seconds', 999999))
+        return {
+            'id': title.lower().replace(' ', '-').replace('&', 'and'),
+            'name': title,
+            'description': desc,
+            'distance_meters': best['distance_meters'],
+            'duration_seconds': best['duration_seconds'],
+            'attempts': len(candidates),
+            'best_date': best['start_time'],
+            'points': best['points']
+        }
+
+    segments = [
+        find_best_run(5.6, 5.85, 'Queen Anne Loop', 'Your signature 5.7km morning loop in Seattle', city_filter='seattle'),
+        find_best_run(7.3, 7.6, 'Lake Union & Fremont 7.5K', 'Frequent 7.4km loop extending past Fremont & Westlake', city_filter='seattle'),
+        find_best_run(9.7, 10.5, 'Seattle 10K Route', '10km training loop', city_filter='seattle'),
+        find_best_run(12.0, 13.0, 'Seattle 12.5K Route', 'Frequent 12.2 - 12.9km loop through Seattle', city_filter='seattle'),
+        find_best_run(14.4, 14.8, 'Seattle Long Loop 15K', '14.6km weekend long run loop', city_filter='seattle'),
+        find_best_run(20.0, 21.0, 'Seattle 20K Long Run', '20.5km half-marathon distance long run', city_filter='seattle'),
+        find_best_run(9.9, 10.2, 'Columbus 10K Route', '10km river/park route from Columbus, OH trip', city_filter='columbus'),
+        find_best_run(8.9, 9.2, 'Burlingame Bay Trail', 'Bayfront running route from California trip', city_filter='burlingame'),
+        find_best_run(16.0, 16.5, 'New York Central Park 10-Miler', '16.2km run through New York City', city_filter='ny')
+    ]
+    segments = [s for s in segments if s]
+    with open(SEGMENTS_PATH, 'w') as f:
+        json.dump(segments, f, indent=2)
+    print(f"📊 Refreshed {len(segments)} route segments in {SEGMENTS_PATH}")
+    return segments
 
 def convert_semicircles(semicircles):
     if semicircles is None:
@@ -227,14 +279,24 @@ def main():
             print(f"  ❌ Error downloading/parsing activity {act_id}: {e}")
 
     # 5. Save updated database if new runs added
+    force_refresh = "--refresh-segments" in sys.argv
     if new_runs_count > 0:
         runs.sort(key=lambda x: x.get("start_time") or "", reverse=True)
         with open(DB_PATH, 'w') as f:
             json.dump(runs, f)
-            
         print(f"\n🎉 Successfully added {new_runs_count} new run(s)! Database updated ({len(runs)} total runs).")
-        
-        # 6. Offer to push to GitHub
+
+    # Refresh route segments if new runs were added or explicitly requested
+    segments_updated = False
+    if new_runs_count > 0 or force_refresh or not os.path.exists(SEGMENTS_PATH):
+        refresh_segments(runs)
+        segments_updated = True
+
+    # 6. Check git diff for files to commit/push
+    diff_check = subprocess.run(["git", "status", "--porcelain", DB_PATH, SEGMENTS_PATH], capture_output=True, text=True)
+    has_changes = bool(diff_check.stdout.strip())
+
+    if has_changes:
         auto_push = "--auto-push" in sys.argv or "-y" in sys.argv
         if auto_push:
             push_ans = 'y'
@@ -247,8 +309,11 @@ def main():
         if push_ans in ('', 'y', 'yes'):
             try:
                 print("git commit & push...")
-                subprocess.run(["git", "add", DB_PATH], check=True)
-                commit_msg = f"Auto-sync Garmin Connect: Added {new_runs_count} new run(s)"
+                subprocess.run(["git", "add", DB_PATH, SEGMENTS_PATH], check=True)
+                if new_runs_count > 0:
+                    commit_msg = f"Auto-sync Garmin Connect: Added {new_runs_count} new run(s) and refreshed segments"
+                else:
+                    commit_msg = "Refresh segments analysis and running database"
                 subprocess.run(["git", "commit", "-m", commit_msg], check=True)
                 
                 # Push using custom SSH key if available
@@ -260,7 +325,7 @@ def main():
             except Exception as e:
                 print(f"❌ Git push encountered an error: {e}")
     else:
-        print("\n✨ Up to date! No new running activities found on Garmin Connect.")
+        print("\n✨ Up to date! No changes to runs or route segments.")
 
 if __name__ == "__main__":
     main()
