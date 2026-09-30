@@ -1,2 +1,2 @@
-garminconnect
-fitparse
+garminconnect==0.2.8
+fitparse==1.2.0
