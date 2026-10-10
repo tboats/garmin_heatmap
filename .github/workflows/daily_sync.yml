@@ -1,9 +1,9 @@
 name: Daily Garmin Sync
 
 on:
-  schedule:
-    # 03:00 UTC = 8:00 PM PDT (Pacific Daylight Time) / 7:00 PM PST
-    - cron: '0 3 * * *'
+  # schedule:
+  #   # 03:00 UTC = 8:00 PM PDT (Pacific Daylight Time) / 7:00 PM PST
+  #   - cron: '0 3 * * *'
   workflow_dispatch: # Allows manual trigger from GitHub Actions UI
 
 permissions:
