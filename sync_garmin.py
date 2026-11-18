@@ -198,10 +198,19 @@ def authenticate():
             raw = base64.b64decode(tokens_env.strip()).decode('utf-8')
             tokens = json.loads(raw)
             os.makedirs(TOKENSTORE, exist_ok=True)
-            with open(os.path.join(TOKENSTORE, "oauth1_token.json"), "w") as f:
-                json.dump(tokens[0], f)
-            with open(os.path.join(TOKENSTORE, "oauth2_token.json"), "w") as f:
-                json.dump(tokens[1], f)
+            if isinstance(tokens, list) and len(tokens) >= 2:
+                with open(os.path.join(TOKENSTORE, "oauth1_token.json"), "w") as f:
+                    json.dump(tokens[0], f)
+                with open(os.path.join(TOKENSTORE, "oauth2_token.json"), "w") as f:
+                    json.dump(tokens[1], f)
+            elif isinstance(tokens, dict) and "oauth1" in tokens and "oauth2" in tokens:
+                with open(os.path.join(TOKENSTORE, "oauth1_token.json"), "w") as f:
+                    json.dump(tokens["oauth1"], f)
+                with open(os.path.join(TOKENSTORE, "oauth2_token.json"), "w") as f:
+                    json.dump(tokens["oauth2"], f)
+            else:
+                with open(os.path.join(TOKENSTORE, "garmin_tokens.json"), "w") as f:
+                    json.dump(tokens, f)
             
             garmin = Garmin()
             garmin.login(TOKENSTORE)
@@ -214,7 +223,11 @@ def authenticate():
         print("ℹ️ Note: GARMIN_TOKENS environment variable is empty or not provided.")
 
     # 1. Try OAuth token authentication from disk
-    if os.path.exists(TOKENSTORE) and os.path.exists(os.path.join(TOKENSTORE, "oauth1_token.json")):
+    has_tokens = os.path.exists(TOKENSTORE) and (
+        os.path.exists(os.path.join(TOKENSTORE, "garmin_tokens.json"))
+        or os.path.exists(os.path.join(TOKENSTORE, "oauth1_token.json"))
+    )
+    if has_tokens:
         try:
             print(f"🔒 Authenticating via saved OAuth tokens ({TOKENSTORE})...")
             garmin = Garmin()
